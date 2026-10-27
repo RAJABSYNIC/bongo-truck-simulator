@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 
 export default function HomeScreen({
   onPlay,
+  onOpenGarage,
   driver,
   setDriver,
   vehicleType,
@@ -188,10 +189,14 @@ export default function HomeScreen({
           <span style={{ fontWeight: '900', fontSize: '16px', letterSpacing: '1px' }}>CHEZA</span>
         </button>
 
-        {/* KARAKANA */}
+        {/* KARAKANA (Inafungua Karakana Halisi ya Ndani ya 3D) */}
         <button
-          onClick={() => setActiveModal('karakana')}
-          style={menuBtnStyle}
+          onClick={onOpenGarage}
+          style={{
+            ...menuBtnStyle,
+            border: '1.5px solid rgba(234, 179, 8, 0.4)',
+            color: '#fef08a'
+          }}
         >
           <span style={{ fontSize: '18px' }}>🔧</span>
           <span>KARAKANA</span>

@@ -7,11 +7,12 @@ import { getLocalDriver, syncDriverWithSupabase } from './lib/supabase.js'
 import MobileControls from './components/MobileControls.jsx'
 import HomeScreen from './components/HomeScreen.jsx'
 import RotatePrompt from './components/RotatePrompt.jsx'
+import GarageView from './components/GarageView.jsx'
 
 export default function App() {
   const mountRef = useRef(null)
 
-  // Game Mode State: 'home' au 'playing'
+  // Game Mode State: 'home', 'garage', 'playing'
   const [gameState, setGameState] = useState('home')
 
   // Vehicle & Driving States
@@ -299,6 +300,7 @@ export default function App() {
       {gameState === 'home' && (
         <HomeScreen
           onPlay={handleStartPlay}
+          onOpenGarage={() => setGameState('garage')}
           driver={driver}
           setDriver={setDriver}
           vehicleType={vehicleType}
@@ -306,7 +308,21 @@ export default function App() {
         />
       )}
 
-      {/* 2. PLAYING 3D SIMULATOR */}
+      {/* 2. 3D INDOOR GARAGE (Karakana Halisi ya Ndani ya 3D) */}
+      {gameState === 'garage' && (
+        <GarageView
+          vehicleType={vehicleType}
+          setVehicleType={setVehicleType}
+          onStartDrive={() => {
+            sounds.startEngine()
+            setGameState('playing')
+          }}
+          onBackToMenu={() => setGameState('home')}
+          driver={driver}
+        />
+      )}
+
+      {/* 3. PLAYING 3D SIMULATOR */}
       {gameState === 'playing' && (
         <>
           <div ref={mountRef} style={{ width: '100%', height: '100%' }} />

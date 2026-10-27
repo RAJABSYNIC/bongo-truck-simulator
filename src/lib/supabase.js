@@ -61,3 +61,4 @@ export async function syncDriverWithSupabase(driverData) {
     console.log('Supabase offline fallback:', err)
   }
 }
+

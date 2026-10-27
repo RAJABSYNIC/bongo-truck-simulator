@@ -13,7 +13,8 @@ export default function MobileControls({
   onHorn,
   vehicleType,
   setVehicleType,
-  speedKmH
+  speedKmH,
+  onOpenMenu
 }) {
   const [controlMode, setControlMode] = useState('buttons') // 'buttons' au 'wheel'
   const [steerAngle, setSteerAngle] = useState(0) // Degrees (-90 to +90)
@@ -84,27 +85,43 @@ export default function MobileControls({
         pointerEvents: 'auto',
         gap: '8px'
       }}>
-        {/* Kushoto: Kubadili Gari (Lori / Basi) */}
-        <button
-          onClick={() => setVehicleType(vehicleType === 'truck' ? 'bus' : 'truck')}
-          style={{
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: '#fff',
-            borderRadius: '12px',
-            padding: '8px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span>{vehicleType === 'truck' ? '🚛 Lori' : '🚌 Basi'}</span>
-          <span style={{ fontSize: '11px', color: '#38bdf8' }}>(Badili)</span>
-        </button>
+        {/* Kushoto: Menu na Kubadili Gari */}
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            onClick={onOpenMenu}
+            style={{
+              background: 'rgba(234, 179, 8, 0.25)',
+              border: '1.5px solid #eab308',
+              color: '#fef08a',
+              borderRadius: '12px',
+              padding: '8px 12px',
+              fontSize: '13px',
+              fontWeight: '800',
+              cursor: 'pointer'
+            }}
+          >
+            🏠 MENU
+          </button>
+          <button
+            onClick={() => setVehicleType(vehicleType === 'truck' ? 'bus' : 'truck')}
+            style={{
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#fff',
+              borderRadius: '12px',
+              padding: '8px 12px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <span>{vehicleType === 'truck' ? '🚛 Lori' : '🚌 Basi'}</span>
+          </button>
+        </div>
 
         {/* Katikati: Speedometer na Gear Display */}
         <div style={{
@@ -420,3 +437,4 @@ export default function MobileControls({
     </div>
   )
 }
+

@@ -373,3 +373,4 @@ export function buildBus(materials) {
     chaseOffset: new THREE.Vector3(0, 5.5, -12.0)
   }
 }
+

@@ -5,11 +5,15 @@ import { GameWorld } from './game/world.js'
 import { sounds } from './game/audio.js'
 import { getLocalDriver, syncDriverWithSupabase } from './lib/supabase.js'
 import MobileControls from './components/MobileControls.jsx'
+import HomeScreen from './components/HomeScreen.jsx'
 
 export default function App() {
   const mountRef = useRef(null)
 
-  // Game States
+  // Game Mode State: 'home' au 'playing'
+  const [gameState, setGameState] = useState('home')
+
+  // Vehicle & Driving States
   const [vehicleType, setVehicleType] = useState('truck') // 'truck' au 'bus'
   const [cameraMode, setCameraMode] = useState('chase') // 'chase' au 'cockpit'
   const [gear, setGear] = useState('D') // 'D', 'N', 'R'
@@ -27,20 +31,21 @@ export default function App() {
   // Driving Physics Reference
   const physicsRef = useRef({
     speed: 0, // m/s
-    x: 0, // lateral position on road
-    z: 0, // longitudinal position (mbele)
-    heading: 0, // angle of vehicle
-    steerAngle: 0, // current wheel angle
+    x: 0,
+    z: 0,
+    heading: 0,
+    steerAngle: 0,
     distanceKm: driver.distanceKm || 0
   })
 
-  // Switch Vehicle Function
   const vehicleInstanceRef = useRef(null)
   const sceneRef = useRef(null)
   const materialsRef = useRef(null)
 
+  // THREE.JS EFFECT (Inafanya kazi tu wakati gameState === 'playing')
   useEffect(() => {
-    // 1. ANZA SCENE YA THREE.JS
+    if (gameState !== 'playing') return
+
     const container = mountRef.current
     if (!container) return
 
@@ -60,12 +65,12 @@ export default function App() {
     renderer.toneMappingExposure = 1.05
     container.appendChild(renderer.domElement)
 
-    // 2. TENGENEZA DUNIA YA BARABARA (WORLD)
+    // Dunia ya Barabara
     const world = new GameWorld(scene)
     const materials = createMaterials()
     materialsRef.current = materials
 
-    // 3. Jenga Gari la Kwanza (Lori au Basi)
+    // Jenga Gari
     function spawnVehicle(type) {
       if (vehicleInstanceRef.current) {
         scene.remove(vehicleInstanceRef.current.group)
@@ -78,7 +83,7 @@ export default function App() {
 
     spawnVehicle(vehicleType)
 
-    // 4. LISTENERS ZA KEYBOARD (KWA AJILI YA KOMPYUTA)
+    // Listeners za Keyboard
     const onKeyDown = (e) => {
       sounds.startEngine()
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') inputRef.current.throttle = true
@@ -88,6 +93,7 @@ export default function App() {
       if (e.key === 'c' || e.key === 'C') setCameraMode(m => m === 'chase' ? 'cockpit' : 'chase')
       if (e.key === 'h' || e.key === 'H') sounds.playHorn()
       if (e.key === 'l' || e.key === 'L') setHeadlightsOn(l => !l)
+      if (e.key === 'Escape') setGameState('home')
     }
 
     const onKeyUp = (e) => {
@@ -101,7 +107,6 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
 
-    // Window Resize Handler
     const onResize = () => {
       if (!container) return
       const w = container.clientWidth
@@ -112,7 +117,7 @@ export default function App() {
     }
     window.addEventListener('resize', onResize)
 
-    // 5. DRIVING SIMULATION LOOP (60 FPS)
+    // SIMULATION LOOP (60 FPS)
     let lastTime = performance.now()
     let frameId
     let brakeAirPlayed = false
@@ -120,7 +125,7 @@ export default function App() {
 
     const animate = (time) => {
       frameId = requestAnimationFrame(animate)
-      const dt = Math.min((time - lastTime) / 1000, 0.1) // Max delta 0.1s
+      const dt = Math.min((time - lastTime) / 1000, 0.1)
       lastTime = time
 
       const p = physicsRef.current
@@ -128,14 +133,12 @@ export default function App() {
       const v = vehicleInstanceRef.current
 
       if (v) {
-        // --- DRIVING PHYSICS ---
         const maxForwardSpeed = 31 // ~110 KM/H
         const maxReverseSpeed = -7 // ~25 KM/H
-        const accelRate = 7.5 // Heavy vehicle acceleration
-        const brakeRate = 18.0 // Air brakes
-        const dragRate = 2.2 // Natural friction / wind drag
+        const accelRate = 7.5
+        const brakeRate = 18.0
+        const dragRate = 2.2
 
-        // Acceleration / Braking
         if (gear === 'D') {
           if (inp.throttle) {
             p.speed = Math.min(maxForwardSpeed, p.speed + accelRate * dt)
@@ -162,7 +165,6 @@ export default function App() {
           }
         }
 
-        // Natural Drag (injini ikiachwa bila mafuta)
         if (!inp.throttle && !inp.brake) {
           if (p.speed > 0) {
             p.speed = Math.max(0, p.speed - dragRate * dt)
@@ -171,50 +173,40 @@ export default function App() {
           }
         }
 
-        // Steering Physics & Smooth Centering
-        const targetSteerAngle = inp.steer * 0.52 // Max 30 degrees
+        const targetSteerAngle = inp.steer * 0.52
         p.steerAngle += (targetSteerAngle - p.steerAngle) * Math.min(dt * 7, 1)
 
-        // Turn wheels mesh
         v.steerWheels.forEach(sw => {
           sw.rotation.y = -p.steerAngle
         })
 
-        // Vehicle Heading & Position
         if (Math.abs(p.speed) > 0.1) {
           const turnMultiplier = 0.55
           p.heading += p.steerAngle * (p.speed / 10) * turnMultiplier * dt
-          p.heading = Math.max(-0.25, Math.min(0.25, p.heading)) // Weka gari lisiende mrama kupita kiasi
+          p.heading = Math.max(-0.25, Math.min(0.25, p.heading))
         }
 
-        // Sogeza gari mbele na pembeni kulingana na usukani
         const forwardVel = p.speed * Math.cos(p.heading)
         const lateralVel = p.speed * Math.sin(p.heading)
 
         p.z += forwardVel * dt
-        p.x = Math.max(-5.0, Math.min(5.0, p.x + lateralVel * dt)) // Road boundaries
+        p.x = Math.max(-5.0, Math.min(5.0, p.x + lateralVel * dt))
 
-        // Update 3D Model
         v.group.position.set(p.x, 0, p.z)
         v.group.rotation.y = p.heading
 
-        // Wheel Rotation (Mzunguko wa matairi)
-        const wheelRotSpeed = p.speed / 0.55 // v = w * r
+        const wheelRotSpeed = p.speed / 0.55
         v.wheels.forEach(w => {
           w.rotation.x += wheelRotSpeed * dt
         })
 
-        // Sauti ya Injini
         const currentKmH = p.speed * 3.6
         sounds.updateEngine(currentKmH, inp.throttle)
         setSpeedKmH(currentKmH)
 
-        // World Road Chunks Update
         world.update(p.z)
 
-        // Camera Positioning
         if (cameraMode === 'cockpit') {
-          // Driver's eye view inside cabin
           const eyePos = v.cabinPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
           eyePos.add(v.group.position)
           camera.position.copy(eyePos)
@@ -224,7 +216,6 @@ export default function App() {
           )
           camera.lookAt(lookTarget)
         } else {
-          // Chase camera (Behind the vehicle)
           const offset = v.chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
           const targetCamPos = v.group.position.clone().add(offset)
           camera.position.lerp(targetCamPos, 0.1)
@@ -233,12 +224,10 @@ export default function App() {
           camera.lookAt(lookTarget)
         }
 
-        // Headlights toggling
         v.headlights.forEach(hl => {
           hl.visible = headlightsOn
         })
 
-        // Umbali uliotembelewa (Distance calculation & saving)
         if (p.speed > 0) {
           p.distanceKm += (p.speed * dt) / 1000
           distanceSaveTimer += dt
@@ -256,7 +245,6 @@ export default function App() {
 
     frameId = requestAnimationFrame(animate)
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(frameId)
       window.removeEventListener('keydown', onKeyDown)
@@ -267,7 +255,13 @@ export default function App() {
       }
       renderer.dispose()
     }
-  }, [vehicleType, cameraMode, gear, headlightsOn])
+  }, [gameState, vehicleType, cameraMode, gear, headlightsOn])
+
+  // Start Playing
+  const handleStartPlay = () => {
+    sounds.startEngine()
+    setGameState('playing')
+  }
 
   // Horn Click Trigger
   const handleHorn = () => {
@@ -275,51 +269,57 @@ export default function App() {
     sounds.playHorn()
   }
 
-  // First Touch Audio Activation
-  const handleStartAudio = () => {
-    sounds.startEngine()
-  }
-
   return (
-    <div
-      onClick={handleStartAudio}
-      onTouchStart={handleStartAudio}
-      style={{
-        position: 'relative',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        backgroundColor: '#0f172a'
-      }}
-    >
-      {/* Three.js Canvas Container */}
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+    <div style={{
+      position: 'relative',
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      backgroundColor: '#0f172a'
+    }}>
+      {/* 1. HOME SCREEN (Menu ya kuanzia yenye muonekano halisi wa Bongo Truck Simulator) */}
+      {gameState === 'home' && (
+        <HomeScreen
+          onPlay={handleStartPlay}
+          driver={driver}
+          setDriver={setDriver}
+          vehicleType={vehicleType}
+          setVehicleType={setVehicleType}
+        />
+      )}
 
-      {/* Mobile Touch & HUD Controls */}
-      <MobileControls
-        onThrottle={(val) => {
-          sounds.startEngine()
-          inputRef.current.throttle = val
-        }}
-        onBrake={(val) => {
-          sounds.startEngine()
-          inputRef.current.brake = val
-        }}
-        onSteer={(val) => {
-          sounds.startEngine()
-          inputRef.current.steer = val
-        }}
-        gear={gear}
-        setGear={setGear}
-        cameraMode={cameraMode}
-        toggleCamera={() => setCameraMode(m => m === 'chase' ? 'cockpit' : 'chase')}
-        toggleHeadlights={() => setHeadlightsOn(h => !h)}
-        headlightsOn={headlightsOn}
-        onHorn={handleHorn}
-        vehicleType={vehicleType}
-        setVehicleType={setVehicleType}
-        speedKmH={speedKmH}
-      />
+      {/* 2. PLAYING 3D SIMULATOR */}
+      {gameState === 'playing' && (
+        <>
+          <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+
+          <MobileControls
+            onThrottle={(val) => {
+              sounds.startEngine()
+              inputRef.current.throttle = val
+            }}
+            onBrake={(val) => {
+              sounds.startEngine()
+              inputRef.current.brake = val
+            }}
+            onSteer={(val) => {
+              sounds.startEngine()
+              inputRef.current.steer = val
+            }}
+            gear={gear}
+            setGear={setGear}
+            cameraMode={cameraMode}
+            toggleCamera={() => setCameraMode(m => m === 'chase' ? 'cockpit' : 'chase')}
+            toggleHeadlights={() => setHeadlightsOn(h => !h)}
+            headlightsOn={headlightsOn}
+            onHorn={handleHorn}
+            vehicleType={vehicleType}
+            setVehicleType={setVehicleType}
+            speedKmH={speedKmH}
+            onOpenMenu={() => setGameState('home')}
+          />
+        </>
+      )}
     </div>
   )
 }

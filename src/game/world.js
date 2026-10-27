@@ -218,3 +218,4 @@ export class GameWorld {
     this.sunLight.target.updateMatrixWorld()
   }
 }
+

@@ -16,3 +16,4 @@ npm run dev
 
 ## 🌐 Deploy
 Imeundwa kuwa deployed moja kwa moja kwenye [Vercel](https://vercel.com).
+

@@ -75,12 +75,28 @@ export default function HomeScreen({
           </div>
         </div>
 
-        {/* KULIA JUU: SETTINGS, PROFILE, MONEY, SHOP */}
+        {/* KULIA JUU: FULLSCREEN, SETTINGS, PROFILE, MONEY, SHOP */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px'
         }}>
+          {/* Fullscreen Button */}
+          <button
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen?.().catch(() => {})
+                screen.orientation?.lock?.('landscape')?.catch(() => {})
+              } else {
+                document.exitFullscreen?.().catch(() => {})
+              }
+            }}
+            style={topIconBtnStyle}
+            title="Fullscreen Mlalo"
+          >
+            📺
+          </button>
+
           {/* Mipangilio */}
           <button
             onClick={() => setActiveModal('misingi')}
@@ -670,3 +686,4 @@ const marketItemStyle = {
   background: '#1f2937',
   border: '1px solid #374151'
 }
+

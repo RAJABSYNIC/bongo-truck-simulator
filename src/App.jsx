@@ -6,6 +6,7 @@ import { sounds } from './game/audio.js'
 import { getLocalDriver, syncDriverWithSupabase } from './lib/supabase.js'
 import MobileControls from './components/MobileControls.jsx'
 import HomeScreen from './components/HomeScreen.jsx'
+import RotatePrompt from './components/RotatePrompt.jsx'
 
 export default function App() {
   const mountRef = useRef(null)
@@ -55,22 +56,25 @@ export default function App() {
     const scene = new THREE.Scene()
     sceneRef.current = scene
 
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 800)
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+    const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 1000)
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    })
     renderer.setSize(width, height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5))
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.05
+    renderer.toneMappingExposure = 1.15
     container.appendChild(renderer.domElement)
 
-    // Dunia ya Barabara
+    // Dunia ya Barabara yenye Ubora wa Juu (HD Landscape)
     const world = new GameWorld(scene)
     const materials = createMaterials()
     materialsRef.current = materials
 
-    // Jenga Gari
+    // Jenga Gari la Kwanza (Lori au Basi)
     function spawnVehicle(type) {
       if (vehicleInstanceRef.current) {
         scene.remove(vehicleInstanceRef.current.group)
@@ -122,6 +126,7 @@ export default function App() {
     let frameId
     let brakeAirPlayed = false
     let distanceSaveTimer = 0
+    let smokeIndex = 0
 
     const animate = (time) => {
       frameId = requestAnimationFrame(animate)
@@ -133,11 +138,11 @@ export default function App() {
       const v = vehicleInstanceRef.current
 
       if (v) {
-        const maxForwardSpeed = 31 // ~110 KM/H
-        const maxReverseSpeed = -7 // ~25 KM/H
-        const accelRate = 7.5
-        const brakeRate = 18.0
-        const dragRate = 2.2
+        const maxForwardSpeed = 32 // ~115 KM/H
+        const maxReverseSpeed = -8 // ~28 KM/H
+        const accelRate = 8.0
+        const brakeRate = 20.0
+        const dragRate = 2.0
 
         if (gear === 'D') {
           if (inp.throttle) {
@@ -174,31 +179,41 @@ export default function App() {
         }
 
         const targetSteerAngle = inp.steer * 0.52
-        p.steerAngle += (targetSteerAngle - p.steerAngle) * Math.min(dt * 7, 1)
+        p.steerAngle += (targetSteerAngle - p.steerAngle) * Math.min(dt * 7.5, 1)
 
         v.steerWheels.forEach(sw => {
           sw.rotation.y = -p.steerAngle
         })
 
         if (Math.abs(p.speed) > 0.1) {
-          const turnMultiplier = 0.55
+          const turnMultiplier = 0.52
           p.heading += p.steerAngle * (p.speed / 10) * turnMultiplier * dt
-          p.heading = Math.max(-0.25, Math.min(0.25, p.heading))
+          p.heading = Math.max(-0.22, Math.min(0.22, p.heading))
         }
 
         const forwardVel = p.speed * Math.cos(p.heading)
         const lateralVel = p.speed * Math.sin(p.heading)
 
         p.z += forwardVel * dt
-        p.x = Math.max(-5.0, Math.min(5.0, p.x + lateralVel * dt))
+        p.x = Math.max(-5.2, Math.min(5.2, p.x + lateralVel * dt))
 
         v.group.position.set(p.x, 0, p.z)
         v.group.rotation.y = p.heading
 
-        const wheelRotSpeed = p.speed / 0.55
+        const wheelRotSpeed = p.speed / 0.58
         v.wheels.forEach(w => {
           w.rotation.x += wheelRotSpeed * dt
         })
+
+        // Exhaust Smoke Effects Unapokanyaga mafuta
+        if (v.smokeParticles && v.smokeParticles.length > 0 && inp.throttle) {
+          smokeIndex = (smokeIndex + 1) % v.smokeParticles.length
+          const smk = v.smokeParticles[smokeIndex]
+          smk.visible = true
+          smk.scale.setScalar(1.0 + Math.random() * 0.8)
+          smk.position.y += 0.04
+          smk.position.z -= 0.08
+        }
 
         const currentKmH = p.speed * 3.6
         sounds.updateEngine(currentKmH, inp.throttle)
@@ -212,15 +227,15 @@ export default function App() {
           camera.position.copy(eyePos)
 
           const lookTarget = eyePos.clone().add(
-            new THREE.Vector3(Math.sin(p.heading), -0.05, Math.cos(p.heading)).multiplyScalar(30)
+            new THREE.Vector3(Math.sin(p.heading), -0.04, Math.cos(p.heading)).multiplyScalar(35)
           )
           camera.lookAt(lookTarget)
         } else {
           const offset = v.chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
           const targetCamPos = v.group.position.clone().add(offset)
-          camera.position.lerp(targetCamPos, 0.1)
+          camera.position.lerp(targetCamPos, 0.12)
 
-          const lookTarget = v.group.position.clone().add(new THREE.Vector3(0, 2.0, 6.0))
+          const lookTarget = v.group.position.clone().add(new THREE.Vector3(0, 2.2, 7.0))
           camera.lookAt(lookTarget)
         }
 
@@ -277,7 +292,10 @@ export default function App() {
       overflow: 'hidden',
       backgroundColor: '#0f172a'
     }}>
-      {/* 1. HOME SCREEN (Menu ya kuanzia yenye muonekano halisi wa Bongo Truck Simulator) */}
+      {/* KIKUMBUSHO CHA SKRINI YA MLALO (LANDSCAPE ORIENTATION LOCK & PROMPT) */}
+      <RotatePrompt />
+
+      {/* 1. HOME SCREEN (Menu ya kuanzia) */}
       {gameState === 'home' && (
         <HomeScreen
           onPlay={handleStartPlay}

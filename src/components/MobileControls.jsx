@@ -152,6 +152,31 @@ export default function MobileControls({
 
         {/* Kulia: Kamera, Taa, Honk */}
         <div style={{ display: 'flex', gap: '6px' }}>
+          {/* Fullscreen Button */}
+          <button
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen?.().catch(() => {})
+                screen.orientation?.lock?.('landscape')?.catch(() => {})
+              } else {
+                document.exitFullscreen?.().catch(() => {})
+              }
+            }}
+            style={{
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#fff',
+              borderRadius: '12px',
+              padding: '8px 10px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+            title="Fullscreen"
+          >
+            📺 FS
+          </button>
+
           {/* Camera Button */}
           <button
             onClick={toggleCamera}

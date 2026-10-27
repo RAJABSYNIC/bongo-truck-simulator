@@ -16,13 +16,14 @@ const PAINT_COLORS = [
 export default function GarageView({
   vehicleType,
   setVehicleType,
+  busLivery,
+  setBusLivery,
   onStartDrive,
   onBackToMenu,
   driver
 }) {
   const mountRef = useRef(null)
   const [selectedColor, setSelectedColor] = useState(PAINT_COLORS[0].hex)
-  const [activeTab, setActiveTab] = useState('color') // 'vehicle', 'color', 'stats'
 
   const vehicleObjRef = useRef(null)
   const materialsRef = useRef(null)
@@ -64,18 +65,18 @@ export default function GarageView({
     materialsRef.current = materials
 
     // Weka Gari Katikati ya Karakana
-    function spawnGarageVehicle(type) {
+    function spawnGarageVehicle(type, livery) {
       if (vehicleObjRef.current) {
         scene.remove(vehicleObjRef.current.group)
       }
-      const vehicle = type === 'truck' ? buildTruck(materials) : buildBus(materials)
+      const vehicle = type === 'truck' ? buildTruck(materials) : buildBus(materials, livery || 'abood')
       vehicle.group.position.set(0, 0, 0)
       vehicle.group.rotation.y = Math.PI / 6 // Slight majestic angle
       scene.add(vehicle.group)
       vehicleObjRef.current = vehicle
     }
 
-    spawnGarageVehicle(vehicleType)
+    spawnGarageVehicle(vehicleType, busLivery)
 
     // Orbit Camera Update Function
     const updateCameraPos = () => {
@@ -158,7 +159,7 @@ export default function GarageView({
       garage.destroy()
       renderer.dispose()
     }
-  }, [vehicleType])
+  }, [vehicleType, busLivery])
 
   // Change Paint Color
   const handleColorChange = (hexColor, intColor) => {
@@ -280,54 +281,91 @@ export default function GarageView({
         pointerEvents: 'none',
         zIndex: 20
       }}>
-        {/* KUSHOTO: BADILI GARI (LORI AU BASI) */}
+        {/* KUSHOTO: BADILI GARI NA LIVERY YA KAMPUNI */}
         <div style={{
           pointerEvents: 'auto',
-          background: 'rgba(15, 23, 42, 0.88)',
+          background: 'rgba(15, 23, 42, 0.92)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          border: '1.5px solid rgba(255, 255, 255, 0.2)',
           borderRadius: '16px',
           padding: '12px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          maxWidth: '280px'
+          maxWidth: '320px'
         }}>
-          <div style={{ fontSize: '12px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>
-            Chagua Muundo:
+          <div style={{ fontSize: '11px', fontWeight: '800', color: '#fef08a', textTransform: 'uppercase' }}>
+            🚌 Kampuni / Gari la Tanzania:
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+            <button
+              onClick={() => {
+                setVehicleType('bus')
+                setBusLivery('abood')
+              }}
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: vehicleType === 'bus' && busLivery === 'abood' ? '#dc2626' : 'rgba(255, 255, 255, 0.08)',
+                border: vehicleType === 'bus' && busLivery === 'abood' ? '2px solid #ef4444' : '1px solid transparent',
+                color: '#fff',
+                fontWeight: '800',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              🔴 ABOOD BUS
+            </button>
+            <button
+              onClick={() => {
+                setVehicleType('bus')
+                setBusLivery('satco')
+              }}
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: vehicleType === 'bus' && busLivery === 'satco' ? '#ea580c' : 'rgba(255, 255, 255, 0.08)',
+                border: vehicleType === 'bus' && busLivery === 'satco' ? '2px solid #f97316' : '1px solid transparent',
+                color: '#fff',
+                fontWeight: '800',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              ⚪ SATCO BUS
+            </button>
+            <button
+              onClick={() => {
+                setVehicleType('bus')
+                setBusLivery('baraka')
+              }}
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: vehicleType === 'bus' && busLivery === 'baraka' ? '#ca8a04' : 'rgba(255, 255, 255, 0.08)',
+                border: vehicleType === 'bus' && busLivery === 'baraka' ? '2px solid #eab308' : '1px solid transparent',
+                color: '#fff',
+                fontWeight: '800',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              🟡 BARAKA COACH
+            </button>
             <button
               onClick={() => setVehicleType('truck')}
               style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '10px',
+                padding: '8px 10px',
+                borderRadius: '8px',
                 background: vehicleType === 'truck' ? '#0284c7' : 'rgba(255, 255, 255, 0.08)',
                 border: vehicleType === 'truck' ? '2px solid #38bdf8' : '1px solid transparent',
                 color: '#fff',
                 fontWeight: '800',
-                fontSize: '13px',
+                fontSize: '12px',
                 cursor: 'pointer'
               }}
             >
-              🚛 Lori la Scania
-            </button>
-            <button
-              onClick={() => setVehicleType('bus')}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '10px',
-                background: vehicleType === 'bus' ? '#d97706' : 'rgba(255, 255, 255, 0.08)',
-                border: vehicleType === 'bus' ? '2px solid #f59e0b' : '1px solid transparent',
-                color: '#fff',
-                fontWeight: '800',
-                fontSize: '13px',
-                cursor: 'pointer'
-              }}
-            >
-              🚌 Basi la VIP
+              🚛 SCANIA LORI
             </button>
           </div>
         </div>
@@ -401,3 +439,4 @@ export default function GarageView({
     </div>
   )
 }
+

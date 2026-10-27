@@ -8,6 +8,7 @@ import MobileControls from './components/MobileControls.jsx'
 import HomeScreen from './components/HomeScreen.jsx'
 import RotatePrompt from './components/RotatePrompt.jsx'
 import GarageView from './components/GarageView.jsx'
+import { TrafficSystem } from './game/traffic.js'
 
 export default function App() {
   const mountRef = useRef(null)
@@ -16,7 +17,8 @@ export default function App() {
   const [gameState, setGameState] = useState('home')
 
   // Vehicle & Driving States
-  const [vehicleType, setVehicleType] = useState('truck') // 'truck' au 'bus'
+  const [vehicleType, setVehicleType] = useState('bus') // 'truck' au 'bus'
+  const [busLivery, setBusLivery] = useState('abood') // 'abood', 'satco', 'baraka'
   const [cameraMode, setCameraMode] = useState('chase') // 'chase' au 'cockpit'
   const [gear, setGear] = useState('D') // 'D', 'N', 'R'
   const [headlightsOn, setHeadlightsOn] = useState(true)
@@ -75,18 +77,21 @@ export default function App() {
     const materials = createMaterials()
     materialsRef.current = materials
 
+    // Mfumo wa Magari ya Kupishana Barabarani (AI Traffic)
+    const traffic = new TrafficSystem(scene, materials)
+
     // Jenga Gari la Kwanza (Lori au Basi)
-    function spawnVehicle(type) {
+    function spawnVehicle(type, livery) {
       if (vehicleInstanceRef.current) {
         scene.remove(vehicleInstanceRef.current.group)
       }
-      const vehicle = type === 'truck' ? buildTruck(materials) : buildBus(materials)
+      const vehicle = type === 'truck' ? buildTruck(materials) : buildBus(materials, livery || 'abood')
       vehicle.group.position.set(physicsRef.current.x, 0, physicsRef.current.z)
       scene.add(vehicle.group)
       vehicleInstanceRef.current = vehicle
     }
 
-    spawnVehicle(vehicleType)
+    spawnVehicle(vehicleType, busLivery)
 
     // Listeners za Keyboard
     const onKeyDown = (e) => {
@@ -221,6 +226,7 @@ export default function App() {
         setSpeedKmH(currentKmH)
 
         world.update(p.z)
+        traffic.update(dt, p.z, p.speed)
 
         if (cameraMode === 'cockpit') {
           const eyePos = v.cabinPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
@@ -271,7 +277,7 @@ export default function App() {
       }
       renderer.dispose()
     }
-  }, [gameState, vehicleType, cameraMode, gear, headlightsOn])
+  }, [gameState, vehicleType, busLivery, cameraMode, gear, headlightsOn])
 
   // Start Playing
   const handleStartPlay = () => {
@@ -313,6 +319,8 @@ export default function App() {
         <GarageView
           vehicleType={vehicleType}
           setVehicleType={setVehicleType}
+          busLivery={busLivery}
+          setBusLivery={setBusLivery}
           onStartDrive={() => {
             sounds.startEngine()
             setGameState('playing')

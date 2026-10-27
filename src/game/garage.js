@@ -227,3 +227,4 @@ export class GarageScene {
     this.scene.remove(this.garageGroup)
   }
 }
+

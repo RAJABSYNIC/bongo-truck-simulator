@@ -11,10 +11,14 @@ export default function MobileControls({
   toggleHeadlights,
   headlightsOn,
   onHorn,
+  onDoor,
+  onWipers,
+  wipersOn,
   vehicleType,
   setVehicleType,
   speedKmH,
-  onOpenMenu
+  onOpenMenu,
+  routeProgress
 }) {
   const [controlMode, setControlMode] = useState('buttons') // 'buttons' au 'wheel'
   const [steerAngle, setSteerAngle] = useState(0) // Degrees (-90 to +90)
@@ -123,30 +127,57 @@ export default function MobileControls({
           </button>
         </div>
 
-        {/* Katikati: Speedometer na Gear Display */}
+        {/* Katikati: Speedometer na Route Banner ya Magufuli ➔ Msamvu */}
         <div style={{
-          background: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '16px',
-          padding: '6px 16px',
-          textAlign: 'center',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px'
         }}>
+          {routeProgress && (
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.9)',
+              border: '1px solid #22c55e',
+              borderRadius: '20px',
+              padding: '3px 12px',
+              fontSize: '11px',
+              fontWeight: '800',
+              color: '#fef08a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>📍 {routeProgress.currentLocation}</span>
+              <span style={{ color: '#38bdf8' }}>({routeProgress.remainingKm} KM to Msamvu)</span>
+            </div>
+          )}
+
           <div style={{
-            fontSize: '28px',
-            fontWeight: '900',
-            color: '#38bdf8',
-            fontFamily: 'monospace',
-            letterSpacing: '1px'
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '16px',
+            padding: '4px 16px',
+            textAlign: 'center',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }}>
-            {Math.round(Math.abs(speedKmH))}
-            <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '4px' }}>KM/H</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', fontSize: '11px', fontWeight: '700' }}>
-            <span style={{ color: gear === 'D' ? '#22c55e' : '#64748b' }}>[D] DRIVE</span>
-            <span style={{ color: gear === 'N' ? '#eab308' : '#64748b' }}>[N]</span>
-            <span style={{ color: gear === 'R' ? '#ef4444' : '#64748b' }}>[R] REV</span>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '900',
+              color: '#38bdf8',
+              fontFamily: 'monospace'
+            }}>
+              {Math.round(Math.abs(speedKmH))}
+              <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '3px' }}>KM/H</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', fontSize: '11px', fontWeight: '700' }}>
+              <span style={{ color: gear === 'D' ? '#22c55e' : '#64748b' }}>[D]</span>
+              <span style={{ color: gear === 'N' ? '#eab308' : '#64748b' }}>[N]</span>
+              <span style={{ color: gear === 'R' ? '#ef4444' : '#64748b' }}>[R]</span>
+            </div>
           </div>
         </div>
 
@@ -192,6 +223,40 @@ export default function MobileControls({
             }}
           >
             📷 {cameraMode === 'chase' ? 'Nje' : 'Cockpit'}
+          </button>
+
+          {/* Door Button (Pneumatic Passenger Door) */}
+          <button
+            onClick={onDoor}
+            style={{
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#fff',
+              borderRadius: '12px',
+              padding: '8px 10px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+            title="Milango ya Abiria"
+          >
+            🚪 Mlango
+          </button>
+
+          {/* Wiper Button */}
+          <button
+            onClick={onWipers}
+            style={{
+              background: wipersOn ? 'rgba(56, 189, 248, 0.3)' : 'rgba(15, 23, 42, 0.75)',
+              border: wipersOn ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.2)',
+              color: wipersOn ? '#38bdf8' : '#fff',
+              borderRadius: '12px',
+              padding: '8px 10px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+            title="Wiper za Kioo"
+          >
+            🌧️ Wiper
           </button>
 
           {/* Headlights Button */}

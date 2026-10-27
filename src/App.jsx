@@ -9,6 +9,8 @@ import HomeScreen from './components/HomeScreen.jsx'
 import RotatePrompt from './components/RotatePrompt.jsx'
 import GarageView from './components/GarageView.jsx'
 import { TrafficSystem } from './game/traffic.js'
+import { DriverCockpit } from './game/cockpit.js'
+import { RouteTracker } from './game/route.js'
 
 export default function App() {
   const mountRef = useRef(null)
@@ -16,37 +18,41 @@ export default function App() {
   // Game Mode State: 'home', 'garage', 'playing'
   const [gameState, setGameState] = useState('home')
 
-  // Vehicle & Driving States
-  const [vehicleType, setVehicleType] = useState('bus') // 'truck' au 'bus'
+  // Vehicle & Driving States (Default: Bus in Cockpit View kama BUSSID)
+  const [vehicleType, setVehicleType] = useState('bus')
   const [busLivery, setBusLivery] = useState('abood') // 'abood', 'satco', 'baraka'
-  const [cameraMode, setCameraMode] = useState('chase') // 'chase' au 'cockpit'
+  const [cameraMode, setCameraMode] = useState('cockpit') // 'cockpit' (BUSSID Interior) au 'chase'
   const [gear, setGear] = useState('D') // 'D', 'N', 'R'
   const [headlightsOn, setHeadlightsOn] = useState(true)
+  const [wipersOn, setWipersOn] = useState(false)
   const [speedKmH, setSpeedKmH] = useState(0)
   const [driver, setDriver] = useState(getLocalDriver())
+  const [routeProgress, setRouteProgress] = useState(null)
+  const [arrivalModal, setArrivalModal] = useState(false)
 
-  // Controls Reference (kwa ajili ya requestAnimationFrame)
+  // Controls Reference
   const inputRef = useRef({
     throttle: false,
     brake: false,
-    steer: 0 // -1 to +1
+    steer: 0
   })
 
   // Driving Physics Reference
   const physicsRef = useRef({
-    speed: 0, // m/s
-    x: 0,
+    speed: 0,
+    x: 2.6, // Anzia upande wa kulia wa njia ya Tanzania
     z: 0,
     heading: 0,
     steerAngle: 0,
-    distanceKm: driver.distanceKm || 0
+    distanceKm: 0
   })
 
   const vehicleInstanceRef = useRef(null)
+  const cockpitRef = useRef(null)
   const sceneRef = useRef(null)
   const materialsRef = useRef(null)
+  const routeTrackerRef = useRef(new RouteTracker(0))
 
-  // THREE.JS EFFECT (Inafanya kazi tu wakati gameState === 'playing')
   useEffect(() => {
     if (gameState !== 'playing') return
 
@@ -59,7 +65,7 @@ export default function App() {
     const scene = new THREE.Scene()
     sceneRef.current = scene
 
-    const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 1000)
+    const camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000)
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance'
@@ -69,18 +75,22 @@ export default function App() {
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.15
+    renderer.toneMappingExposure = 1.18
     container.appendChild(renderer.domElement)
 
-    // Dunia ya Barabara yenye Ubora wa Juu (HD Landscape)
+    // Dunia ya Barabara ya Tanzania (Magufuli ➔ Msamvu)
     const world = new GameWorld(scene)
     const materials = createMaterials()
     materialsRef.current = materials
 
-    // Mfumo wa Magari ya Kupishana Barabarani (AI Traffic)
+    // Magari ya Kupishana (Traffic)
     const traffic = new TrafficSystem(scene, materials)
 
-    // Jenga Gari la Kwanza (Lori au Basi)
+    // Cockpit ya Ndani ya 3D (BUSSID Style Interior)
+    const cockpit = new DriverCockpit(scene)
+    cockpitRef.current = cockpit
+
+    // Jenga Gari la Mchezaji
     function spawnVehicle(type, livery) {
       if (vehicleInstanceRef.current) {
         scene.remove(vehicleInstanceRef.current.group)
@@ -101,8 +111,9 @@ export default function App() {
       if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') inputRef.current.steer = -1
       if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') inputRef.current.steer = 1
       if (e.key === 'c' || e.key === 'C') setCameraMode(m => m === 'chase' ? 'cockpit' : 'chase')
-      if (e.key === 'h' || e.key === 'H') sounds.playHorn()
+      if (e.key === 'h' || e.key === 'H') sounds.playBusHorn()
       if (e.key === 'l' || e.key === 'L') setHeadlightsOn(l => !l)
+      if (e.key === 'p' || e.key === 'P') sounds.playDoorSound()
       if (e.key === 'Escape') setGameState('home')
     }
 
@@ -127,12 +138,11 @@ export default function App() {
     }
     window.addEventListener('resize', onResize)
 
-    // SIMULATION LOOP (60 FPS)
+    // SIMULATION LOOP
     let lastTime = performance.now()
     let frameId
     let brakeAirPlayed = false
     let distanceSaveTimer = 0
-    let smokeIndex = 0
 
     const animate = (time) => {
       frameId = requestAnimationFrame(animate)
@@ -144,10 +154,10 @@ export default function App() {
       const v = vehicleInstanceRef.current
 
       if (v) {
-        const maxForwardSpeed = 32 // ~115 KM/H
-        const maxReverseSpeed = -8 // ~28 KM/H
-        const accelRate = 8.0
-        const brakeRate = 20.0
+        const maxForwardSpeed = 33 // ~120 KM/H
+        const maxReverseSpeed = -8
+        const accelRate = 8.5
+        const brakeRate = 22.0
         const dragRate = 2.0
 
         if (gear === 'D') {
@@ -211,16 +221,6 @@ export default function App() {
           w.rotation.x += wheelRotSpeed * dt
         })
 
-        // Exhaust Smoke Effects Unapokanyaga mafuta
-        if (v.smokeParticles && v.smokeParticles.length > 0 && inp.throttle) {
-          smokeIndex = (smokeIndex + 1) % v.smokeParticles.length
-          const smk = v.smokeParticles[smokeIndex]
-          smk.visible = true
-          smk.scale.setScalar(1.0 + Math.random() * 0.8)
-          smk.position.y += 0.04
-          smk.position.z -= 0.08
-        }
-
         const currentKmH = p.speed * 3.6
         sounds.updateEngine(currentKmH, inp.throttle)
         setSpeedKmH(currentKmH)
@@ -228,16 +228,42 @@ export default function App() {
         world.update(p.z)
         traffic.update(dt, p.z, p.speed)
 
-        if (cameraMode === 'cockpit') {
-          const eyePos = v.cabinPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
-          eyePos.add(v.group.position)
-          camera.position.copy(eyePos)
+        // COCKPIT 3D POSITIONING NA INSTRUMENT UPDATE (BUSSID STYLE)
+        if (cockpit) {
+          cockpit.setPosition(v.group.position, p.heading)
+          cockpit.setSteering(p.steerAngle)
+          cockpit.updateGauges(currentKmH, Math.abs(p.speed) / maxForwardSpeed, gear)
+          cockpit.updateWipers(time / 1000, wipersOn)
 
-          const lookTarget = eyePos.clone().add(
-            new THREE.Vector3(Math.sin(p.heading), -0.04, Math.cos(p.heading)).multiplyScalar(35)
+          if (routeTrackerRef.current) {
+            const prog = routeTrackerRef.current.update((p.speed * dt) / 1000)
+            cockpit.updateGPS(prog, currentKmH)
+            setRouteProgress(prog)
+
+            if (prog.isCompleted && !arrivalModal) {
+              setArrivalModal(true)
+              p.speed = 0
+              sounds.playAirBrake()
+            }
+          }
+        }
+
+        // CAMERA MODES
+        if (cameraMode === 'cockpit') {
+          // Kiti cha Dereva ndani ya Basi (BUSSID Driver Eye Level)
+          const driverHeadPos = new THREE.Vector3(-0.4, 2.38, 3.82)
+          driverHeadPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
+          driverHeadPos.add(v.group.position)
+
+          camera.position.copy(driverHeadPos)
+
+          // Mtazamo mbele kupitia kioo kuelekea barabarani
+          const lookAhead = driverHeadPos.clone().add(
+            new THREE.Vector3(Math.sin(p.heading), -0.02, Math.cos(p.heading)).multiplyScalar(40)
           )
-          camera.lookAt(lookTarget)
+          camera.lookAt(lookAhead)
         } else {
+          // Chase camera
           const offset = v.chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), p.heading)
           const targetCamPos = v.group.position.clone().add(offset)
           camera.position.lerp(targetCamPos, 0.12)
@@ -250,12 +276,15 @@ export default function App() {
           hl.visible = headlightsOn
         })
 
+        // Hifadhi data za dereva mara kwa mara
         if (p.speed > 0) {
-          p.distanceKm += (p.speed * dt) / 1000
           distanceSaveTimer += dt
-          if (distanceSaveTimer > 5) {
+          if (distanceSaveTimer > 6) {
             distanceSaveTimer = 0
-            const updated = { ...driver, distanceKm: Math.round(p.distanceKm * 10) / 10 }
+            const updated = {
+              ...driver,
+              distanceKm: Math.round((driver.distanceKm + (p.speed * dt) / 1000) * 10) / 10
+            }
             setDriver(updated)
             syncDriverWithSupabase(updated)
           }
@@ -275,20 +304,37 @@ export default function App() {
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement)
       }
+      cockpit.destroy()
       renderer.dispose()
     }
-  }, [gameState, vehicleType, busLivery, cameraMode, gear, headlightsOn])
+  }, [gameState, vehicleType, busLivery, cameraMode, gear, headlightsOn, wipersOn])
 
-  // Start Playing
   const handleStartPlay = () => {
     sounds.startEngine()
     setGameState('playing')
   }
 
-  // Horn Click Trigger
   const handleHorn = () => {
     sounds.startEngine()
-    sounds.playHorn()
+    sounds.playBusHorn()
+  }
+
+  const handleDoor = () => {
+    sounds.playDoorSound()
+  }
+
+  const handleCompleteJourney = () => {
+    // Malipo ya safari ya Magufuli ➔ Msamvu: TSh 650,000!
+    const updated = {
+      ...driver,
+      money: (driver.money || 50000) + 650000,
+      xp: (driver.xp || 100) + 500
+    }
+    setDriver(updated)
+    syncDriverWithSupabase(updated)
+    setArrivalModal(false)
+    routeTrackerRef.current = new RouteTracker(0)
+    setGameState('home')
   }
 
   return (
@@ -299,10 +345,9 @@ export default function App() {
       overflow: 'hidden',
       backgroundColor: '#0f172a'
     }}>
-      {/* KIKUMBUSHO CHA SKRINI YA MLALO (LANDSCAPE ORIENTATION LOCK & PROMPT) */}
       <RotatePrompt />
 
-      {/* 1. HOME SCREEN (Menu ya kuanzia) */}
+      {/* 1. HOME SCREEN */}
       {gameState === 'home' && (
         <HomeScreen
           onPlay={handleStartPlay}
@@ -314,7 +359,7 @@ export default function App() {
         />
       )}
 
-      {/* 2. 3D INDOOR GARAGE (Karakana Halisi ya Ndani ya 3D) */}
+      {/* 2. 3D INDOOR GARAGE */}
       {gameState === 'garage' && (
         <GarageView
           vehicleType={vehicleType}
@@ -355,11 +400,95 @@ export default function App() {
             toggleHeadlights={() => setHeadlightsOn(h => !h)}
             headlightsOn={headlightsOn}
             onHorn={handleHorn}
+            onDoor={handleDoor}
+            onWipers={() => setWipersOn(w => !w)}
+            wipersOn={wipersOn}
             vehicleType={vehicleType}
             setVehicleType={setVehicleType}
             speedKmH={speedKmH}
             onOpenMenu={() => setGameState('home')}
+            routeProgress={routeProgress}
           />
+
+          {/* MODAL YA KUWASILI MSAMVU MOROGORO */}
+          {arrivalModal && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}>
+              <div style={{
+                background: '#111827',
+                border: '2px solid #22c55e',
+                borderRadius: '24px',
+                maxWidth: '460px',
+                width: '100%',
+                padding: '30px',
+                textAlign: 'center',
+                color: '#fff',
+                boxShadow: '0 25px 50px rgba(34, 197, 94, 0.3)'
+              }}>
+                <div style={{ fontSize: '50px', marginBottom: '12px' }}>🎉 🚌</div>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: '900',
+                  color: '#fef08a',
+                  marginBottom: '8px'
+                }}>
+                  HONGERA DEREVA!
+                </h2>
+                <div style={{
+                  fontSize: '16px',
+                  color: '#4ade80',
+                  fontWeight: '800',
+                  marginBottom: '16px'
+                }}>
+                  Umewasili Stendi ya Msamvu (Morogoro) Salama!
+                </div>
+                <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.6', marginBottom: '20px' }}>
+                  Umekamilisha safari ya <strong>KM 190</strong> kutoka Stendi Kuu ya Magufuli (Mbezi Luis, Dar) ukipita Vigwaza na Chalinze bila ajali.
+                </p>
+
+                <div style={{
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  border: '1px solid #22c55e',
+                  borderRadius: '16px',
+                  padding: '14px',
+                  marginBottom: '22px'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#86efac' }}>Malipo ya Safari:</div>
+                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#22c55e' }}>
+                    + TSh 650,000
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>+ 500 Dereva XP</div>
+                </div>
+
+                <button
+                  onClick={handleCompleteJourney}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px',
+                    color: '#fff',
+                    fontWeight: '900',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)'
+                  }}
+                >
+                  Pokea Pesa & Rudi Karakana
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
